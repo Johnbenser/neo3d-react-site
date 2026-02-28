@@ -95,10 +95,24 @@
 
     // Body shell silhouette
     const shellGeo = new THREE.CapsuleGeometry(1.2, 4.1, 10, 24);
-    const shellMat = new THREE.MeshPhysicalMaterial({ color: 0x1a2338, transparent: true, opacity: 0.22, roughness: 0.35, metalness: 0.05, clearcoat: 0.6, transmission: 0.2 });
+    const shellMat = new THREE.MeshPhysicalMaterial({ color: 0x1a2338, transparent: true, opacity: 0.18, roughness: 0.35, metalness: 0.05, clearcoat: 0.6, transmission: 0.2, side: THREE.DoubleSide });
     const shell = new THREE.Mesh(shellGeo, shellMat);
     shell.position.y = 0.25;
+    shell.renderOrder = 1;
+    shell.material.depthWrite = false;
     scene.add(shell);
+
+    // Clear visible anatomy mannequin (always visible fallback)
+    const mannequin = new THREE.Group();
+    const boneMat = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.55, metalness: 0.1, transparent: true, opacity: 0.55 });
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.95, 2.8, 8, 16), boneMat); torso.position.set(0, 0.4, -0.05); mannequin.add(torso);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 16), boneMat); head.position.set(0, 2.25, 0); mannequin.add(head);
+    const pelvisVis = new THREE.Mesh(new THREE.TorusGeometry(0.78, 0.18, 12, 40), boneMat); pelvisVis.position.set(0, -1.2, -0.05); pelvisVis.rotation.x = Math.PI / 2.2; mannequin.add(pelvisVis);
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 1.8, 6, 12), boneMat); armL.position.set(-1.05, 0.8, 0); armL.rotation.z = 0.2; mannequin.add(armL);
+    const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 1.8, 6, 12), boneMat); armR.position.set(1.05, 0.8, 0); armR.rotation.z = -0.2; mannequin.add(armR);
+    const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 2.2, 6, 12), boneMat); legL.position.set(-0.38, -2.0, 0); mannequin.add(legL);
+    const legR = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 2.2, 6, 12), boneMat); legR.position.set(0.38, -2.0, 0); mannequin.add(legR);
+    scene.add(mannequin);
 
     // Grid floor
     const grid = new THREE.GridHelper(30, 40, 0x1f355d, 0x12203a);
@@ -140,7 +154,7 @@
 
     function setInfo(data){
       infoEl.innerHTML = `
-        <div class="name">${data.id.replaceAll('_',' ').toUpperCase()}</div>
+        <div class="name">${data.id.replace(/_/g,' ').toUpperCase()}</div>
         <div class="meta"><strong>System:</strong> ${data.system}</div>
         <div class="meta"><strong>Key Facts:</strong><br/>• ${data.facts.join('<br/>• ')}</div>
         <div class="meta"><strong>Blood Supply:</strong> ${data.blood}</div>
