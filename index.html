@@ -3,43 +3,146 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Benser Hand-Controlled Universe</title>
+  <title>Benser Universe Explorer</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #030712; font-family: Inter, system-ui, Arial, sans-serif; }
+    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, Arial, sans-serif; background: #02040f; color: #e5e7eb; }
     #app { position: fixed; inset: 0; }
-    #cam { position: fixed; right: 12px; bottom: 12px; width: 220px; border-radius: 12px; border: 1px solid rgba(255,255,255,.25); opacity: .9; z-index: 10; }
-    .hud { position: fixed; left: 12px; top: 12px; z-index: 11; color: #e5e7eb; display: grid; gap: 8px; }
-    .chip { background: rgba(10,16,30,.55); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 8px 12px; font-size: 12px; backdrop-filter: blur(8px); }
-    .btn { cursor: pointer; }
+
+    .hud {
+      position: fixed;
+      inset: 12px 12px auto 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .chip {
+      pointer-events: auto;
+      font-size: 12px;
+      background: rgba(8, 14, 30, 0.6);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 999px;
+      padding: 8px 12px;
+      backdrop-filter: blur(8px);
+    }
+
+    .panel {
+      position: fixed;
+      right: 12px;
+      top: 56px;
+      width: min(360px, 92vw);
+      max-height: calc(100vh - 72px);
+      overflow: auto;
+      z-index: 20;
+      background: rgba(7, 12, 24, 0.76);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      padding: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .title { margin: 0 0 6px; font-size: 18px; }
+    .desc { margin: 0; font-size: 13px; opacity: .9; line-height: 1.45; }
+
+    .actions { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.07);
+      color: #e2e8f0;
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    button.primary {
+      background: linear-gradient(90deg,#22d3ee,#8b5cf6);
+      color: #031122;
+      font-weight: 700;
+      border: none;
+    }
+
+    .planet-list { margin-top: 10px; display: grid; gap: 8px; }
+    .planet-item {
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.04);
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .planet-name { font-size: 13px; font-weight: 700; }
+    .planet-sub { font-size: 11px; opacity: .8; }
+
+    .footer { margin-top: 10px; font-size: 11px; opacity: .75; }
+
+    @media (max-width: 900px) {
+      .panel {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: 12px;
+        width: auto;
+        max-height: 42vh;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="app"></div>
-  <video id="cam" autoplay playsinline muted></video>
 
   <div class="hud">
-    <div class="chip">🌌 Hand-Controlled Universe</div>
-    <div id="status" class="chip">Status: Initializing camera...</div>
-    <button id="toggleCam" class="chip btn">Hide Camera Preview</button>
+    <div class="chip">🌌 Benser Universe Explorer</div>
+    <div id="fps" class="chip">FPS: --</div>
   </div>
+
+  <aside class="panel">
+    <h2 id="planetTitle" class="title">Select a planet</h2>
+    <p id="planetDesc" class="desc">Click a planet or pick from the list to fly there. Drag to orbit, scroll/pinch to zoom in and out.</p>
+
+    <div class="actions">
+      <button id="resetCam" class="primary">Reset Camera</button>
+      <button id="tourBtn">Auto Tour</button>
+    </div>
+
+    <div id="planetList" class="planet-list"></div>
+    <div class="footer">Tip: Cursor movement also adds cinematic parallax to camera and starfield.</div>
+  </aside>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-    import { Hands } from 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js';
-    import { Camera } from 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
     const app = document.getElementById('app');
-    const videoEl = document.getElementById('cam');
-    const statusEl = document.getElementById('status');
-    const toggleBtn = document.getElementById('toggleCam');
+    const fpsEl = document.getElementById('fps');
+    const planetTitle = document.getElementById('planetTitle');
+    const planetDesc = document.getElementById('planetDesc');
+    const planetList = document.getElementById('planetList');
+    const resetCam = document.getElementById('resetCam');
+    const tourBtn = document.getElementById('tourBtn');
 
-    // Three.js scene
+    const planetsData = [
+      { name:'Mercury', color:0x9ca3af, size:0.35, distance:3.2, speed:0.032, description:'Smallest planet, heavily cratered, and closest to the Sun. It has extreme temperature swings.' },
+      { name:'Venus', color:0xf59e0b, size:0.52, distance:4.4, speed:0.025, description:'A dense CO₂ atmosphere and sulfuric clouds make Venus the hottest planet in the Solar System.' },
+      { name:'Earth', color:0x3b82f6, size:0.56, distance:5.8, speed:0.020, description:'Our home planet with liquid water oceans, plate tectonics, and a life-supporting atmosphere.' },
+      { name:'Mars', color:0xef4444, size:0.46, distance:7.2, speed:0.016, description:'Known as the red planet. It has giant volcanoes, deep canyons, and signs of ancient water.' },
+      { name:'Jupiter', color:0xfbbf24, size:1.15, distance:9.6, speed:0.010, description:'The largest planet, a gas giant with strong storms like the Great Red Spot and many moons.' },
+      { name:'Saturn', color:0xeab308, size:0.98, distance:12.4, speed:0.008, rings:true, description:'Famous for its spectacular rings made of ice and rock particles orbiting a gas giant core.' },
+      { name:'Uranus', color:0x67e8f9, size:0.76, distance:15.2, speed:0.006, description:'An ice giant tilted on its side, giving it unusual seasons and a pale cyan atmosphere.' },
+      { name:'Neptune', color:0x2563eb, size:0.74, distance:18.0, speed:0.005, description:'A distant ice giant with powerful winds and deep blue color due to methane in the atmosphere.' }
+    ];
+
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x030712, 8, 45);
+    scene.background = new THREE.Color(0x02040f);
+    scene.fog = new THREE.Fog(0x02040f, 18, 90);
 
-    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 100);
-    camera.position.set(0, 0, 12);
+    const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 200);
+    camera.position.set(0, 4, 24);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -47,98 +150,135 @@
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     app.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0x99aaff, 0.45));
-    const lightA = new THREE.PointLight(0x67e8f9, 1.5, 80); lightA.position.set(5, 4, 6); scene.add(lightA);
-    const lightB = new THREE.PointLight(0xa78bfa, 1.2, 80); lightB.position.set(-6, -2, 5); scene.add(lightB);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.minDistance = 3;
+    controls.maxDistance = 80;
+    controls.target.set(0, 0, 0);
 
-    // Galaxy particles
-    const count = 5000;
-    const positions = new Float32Array(count * 3);
-    const base = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
+    scene.add(new THREE.AmbientLight(0x8899ff, 0.45));
+    const sunLight = new THREE.PointLight(0xffe29a, 2.2, 300);
+    sunLight.position.set(0, 0, 0);
+    scene.add(sunLight);
+
+    // Sun
+    const sun = new THREE.Mesh(
+      new THREE.SphereGeometry(1.6, 40, 28),
+      new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0xffb703, emissiveIntensity: 1.0, roughness: 0.4, metalness: 0.0 })
+    );
+    scene.add(sun);
+
+    // Stars
+    const starCount = 7000;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
       const i3 = i * 3;
-      const radius = 3 + Math.random() * 18;
-      const angle = Math.random() * Math.PI * 2;
-      const spiral = radius * 0.25;
-      const x = Math.cos(angle + spiral) * radius;
-      const y = (Math.random() - 0.5) * 8;
-      const z = Math.sin(angle + spiral) * radius;
-      positions[i3] = base[i3] = x;
-      positions[i3 + 1] = base[i3 + 1] = y;
-      positions[i3 + 2] = base[i3 + 2] = z;
+      const r = 30 + Math.random() * 120;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos((Math.random() * 2) - 1);
+      starPos[i3] = r * Math.sin(phi) * Math.cos(theta);
+      starPos[i3 + 1] = r * Math.cos(phi);
+      starPos[i3 + 2] = r * Math.sin(phi) * Math.sin(theta);
     }
-
-    const starGeo = new THREE.BufferGeometry();
-    starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const starMat = new THREE.PointsMaterial({ color: 0x9fb8ff, size: 0.04, transparent: true, opacity: 0.95 });
-    const stars = new THREE.Points(starGeo, starMat);
+    const starsGeo = new THREE.BufferGeometry();
+    starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starsMat = new THREE.PointsMaterial({ color: 0xb8c6ff, size: 0.06, transparent: true, opacity: 0.95 });
+    const stars = new THREE.Points(starsGeo, starsMat);
     scene.add(stars);
 
-    // Core orb
-    const orb = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.7, 3),
-      new THREE.MeshStandardMaterial({ color: 0x6ee7ff, emissive: 0x2ea8ff, emissiveIntensity: 0.6, roughness: 0.3, metalness: 0.7 })
-    );
-    scene.add(orb);
+    // Planets
+    const planets = [];
+    const orbitLines = [];
 
-    // Hand tracking state
-    let handDetected = false;
-    const hand = { x: 0, y: 0, z: 0, tx: 0, ty: 0, pinch: 0 };
+    planetsData.forEach((p, idx) => {
+      const g = new THREE.SphereGeometry(p.size, 28, 20);
+      const m = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.7, metalness: 0.1, emissive: p.color, emissiveIntensity: 0.08 });
+      const mesh = new THREE.Mesh(g, m);
+      mesh.userData = { ...p, idx };
+      scene.add(mesh);
+      planets.push(mesh);
 
-    function onHands(results) {
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
-        const lm = results.multiHandLandmarks[0];
-        const tip = lm[8]; // index tip
-        const thumb = lm[4];
+      const orbitGeo = new THREE.RingGeometry(p.distance - 0.01, p.distance + 0.01, 180);
+      const orbitMat = new THREE.MeshBasicMaterial({ color: 0x2b3658, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+      const orbit = new THREE.Mesh(orbitGeo, orbitMat);
+      orbit.rotation.x = Math.PI / 2;
+      scene.add(orbit);
+      orbitLines.push(orbit);
 
-        handDetected = true;
-        hand.tx = (tip.x - 0.5) * 2;
-        hand.ty = (tip.y - 0.5) * 2;
-        hand.z = tip.z;
-
-        const dx = tip.x - thumb.x;
-        const dy = tip.y - thumb.y;
-        const dz = tip.z - thumb.z;
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        hand.pinch = Math.max(0, Math.min(1, 1 - dist * 8));
-
-        statusEl.textContent = `Status: Hand detected • pinch ${hand.pinch.toFixed(2)}`;
-      } else {
-        handDetected = false;
-        statusEl.textContent = 'Status: Show your hand to control the universe';
+      if (p.rings) {
+        const ringGeo = new THREE.RingGeometry(p.size * 1.35, p.size * 2.15, 96);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xfef3c7, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI * 0.42;
+        mesh.add(ring);
       }
+    });
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    let focused = null;
+    let touring = false;
+    let tourIndex = 0;
+    let tourTimer = 0;
+
+    const cursor = { x: 0, y: 0, tx: 0, ty: 0 };
+    addEventListener('mousemove', (e) => {
+      cursor.tx = (e.clientX / innerWidth) * 2 - 1;
+      cursor.ty = (e.clientY / innerHeight) * 2 - 1;
+    });
+
+    function setInfo(p) {
+      planetTitle.textContent = p.name;
+      planetDesc.textContent = p.description;
     }
 
-    const hands = new Hands({
-      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.6
-    });
-    hands.onResults(onHands);
-
-    const cam = new Camera(videoEl, {
-      onFrame: async () => { await hands.send({ image: videoEl }); },
-      width: 640,
-      height: 480
-    });
-
-    try {
-      await cam.start();
-      statusEl.textContent = 'Status: Camera ready. Move your hand.';
-    } catch (e) {
-      statusEl.textContent = 'Status: Camera blocked. Allow webcam permission and refresh.';
+    function flyToPlanet(planet) {
+      focused = planet;
+      setInfo(planet.userData);
     }
 
-    toggleBtn.onclick = () => {
-      const hidden = videoEl.style.display === 'none';
-      videoEl.style.display = hidden ? 'block' : 'none';
-      toggleBtn.textContent = hidden ? 'Hide Camera Preview' : 'Show Camera Preview';
+    function buildList() {
+      planetList.innerHTML = '';
+      planets.forEach((planet) => {
+        const row = document.createElement('div');
+        row.className = 'planet-item';
+
+        const left = document.createElement('div');
+        left.innerHTML = `<div class="planet-name">${planet.userData.name}</div><div class="planet-sub">Distance ${planet.userData.distance.toFixed(1)} AU (scaled)</div>`;
+
+        const btn = document.createElement('button');
+        btn.textContent = 'Explore';
+        btn.onclick = () => flyToPlanet(planet);
+
+        row.appendChild(left);
+        row.appendChild(btn);
+        planetList.appendChild(row);
+      });
+    }
+
+    buildList();
+
+    resetCam.onclick = () => {
+      focused = null;
+      controls.target.set(0, 0, 0);
+      camera.position.set(0, 4, 24);
+      setInfo({ name: 'Select a planet', description: 'Click a planet or pick from the list to fly there. Drag to orbit, scroll/pinch to zoom in and out.' });
     };
+
+    tourBtn.onclick = () => {
+      touring = !touring;
+      tourBtn.textContent = touring ? 'Stop Tour' : 'Auto Tour';
+      tourTimer = 0;
+    };
+
+    addEventListener('click', (e) => {
+      pointer.x = (e.clientX / innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(planets);
+      if (hits.length) flyToPlanet(hits[0].object);
+    });
 
     addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
@@ -148,59 +288,68 @@
     });
 
     const clock = new THREE.Clock();
+    let fpsFrames = 0, fpsAcc = 0, prev = performance.now();
+
     function animate() {
       const t = clock.getElapsedTime();
+      const dt = clock.getDelta();
 
-      hand.x += (hand.tx - hand.x) * 0.08;
-      hand.y += (hand.ty - hand.y) * 0.08;
+      cursor.x += (cursor.tx - cursor.x) * 0.05;
+      cursor.y += (cursor.ty - cursor.y) * 0.05;
 
-      // Camera responds to hand
-      camera.position.x = hand.x * 3.2;
-      camera.position.y = -hand.y * 2.2;
-      camera.lookAt(0, 0, 0);
+      sun.rotation.y += 0.002;
+      sun.material.emissiveIntensity = 0.95 + Math.sin(t * 1.8) * 0.06;
 
-      // Core reacts
-      orb.rotation.x = t * 0.5 + hand.y * 1.2;
-      orb.rotation.y = t * 0.8 + hand.x * 1.2;
-      const pulse = 1 + Math.sin(t * 2.4) * 0.05 + hand.pinch * 0.35;
-      orb.scale.setScalar(pulse);
-      orb.material.emissiveIntensity = 0.55 + hand.pinch * 0.9;
+      planets.forEach((planet) => {
+        const p = planet.userData;
+        const ang = t * p.speed + p.idx * 0.8;
+        planet.position.x = Math.cos(ang) * p.distance;
+        planet.position.z = Math.sin(ang) * p.distance;
+        planet.position.y = Math.sin(t * 0.5 + p.idx) * 0.08;
+        planet.rotation.y += 0.01;
+      });
 
-      // Galaxy reacts to hand attraction/repulsion
-      const pos = starGeo.attributes.position.array;
-      for (let i = 0; i < count; i++) {
-        const i3 = i * 3;
-        const bx = base[i3], by = base[i3 + 1], bz = base[i3 + 2];
-
-        const swirl = Math.sin(t * 0.7 + i * 0.01) * 0.08;
-        let x = bx + Math.cos(t * 0.25 + i) * swirl;
-        let y = by + Math.sin(t * 0.28 + i * 0.7) * swirl;
-        let z = bz + Math.sin(t * 0.22 + i * 1.3) * swirl;
-
-        if (handDetected) {
-          const hx = hand.x * 6;
-          const hy = -hand.y * 4;
-          const hz = 0;
-          const dx = x - hx, dy = y - hy, dz = z - hz;
-          const d2 = dx * dx + dy * dy + dz * dz + 0.0001;
-          const force = (hand.pinch > 0.4 ? -1 : 1) * (0.8 + hand.pinch * 1.6) / d2;
-          x += dx * force;
-          y += dy * force;
-          z += dz * force;
+      if (touring) {
+        tourTimer += dt;
+        if (tourTimer > 4.5) {
+          tourIndex = (tourIndex + 1) % planets.length;
+          flyToPlanet(planets[tourIndex]);
+          tourTimer = 0;
         }
-
-        pos[i3] = x;
-        pos[i3 + 1] = y;
-        pos[i3 + 2] = z;
       }
-      starGeo.attributes.position.needsUpdate = true;
 
-      stars.rotation.y = t * 0.04;
-      stars.rotation.x = Math.sin(t * 0.15) * 0.08;
+      if (focused) {
+        const targetPos = focused.position.clone();
+        const dir = targetPos.clone().normalize().multiplyScalar(3.2 + focused.userData.size * 2.2);
+        const camTarget = targetPos.clone().add(dir).add(new THREE.Vector3(0.9, 0.8, 0.9));
 
+        camera.position.lerp(camTarget, 0.035);
+        controls.target.lerp(targetPos, 0.05);
+      } else {
+        const idleTarget = new THREE.Vector3(cursor.x * 0.8, cursor.y * -0.35, 0);
+        controls.target.lerp(idleTarget, 0.04);
+        camera.position.x += ((cursor.x * 1.3) - camera.position.x) * 0.01;
+        camera.position.y += ((4 + cursor.y * -0.6) - camera.position.y) * 0.01;
+      }
+
+      stars.rotation.y = t * 0.01 + cursor.x * 0.02;
+      stars.rotation.x = cursor.y * 0.02;
+
+      controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(animate);
+
+      const now = performance.now();
+      fpsAcc += now - prev;
+      prev = now;
+      fpsFrames++;
+      if (fpsAcc > 450) {
+        fpsEl.textContent = `FPS: ${Math.round((fpsFrames * 1000) / fpsAcc)}`;
+        fpsAcc = 0;
+        fpsFrames = 0;
+      }
     }
+
     animate();
   </script>
 </body>
