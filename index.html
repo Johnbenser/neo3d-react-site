@@ -106,8 +106,7 @@
     <p id="planetDesc" class="desc">Click a planet or pick from the list to fly there. Drag to orbit, scroll/pinch to zoom in and out.</p>
 
     <div class="actions">
-      <button id="resetCam" class="primary">Reset Camera</button>
-      <button id="tourBtn">Auto Tour</button>
+      <button id="tourBtn" class="primary">Auto Tour</button>
     </div>
 
     <div id="planetList" class="planet-list"></div>
@@ -123,7 +122,6 @@
     const planetTitle = document.getElementById('planetTitle');
     const planetDesc = document.getElementById('planetDesc');
     const planetList = document.getElementById('planetList');
-    const resetCam = document.getElementById('resetCam');
     const tourBtn = document.getElementById('tourBtn');
 
     const planetsData = [
@@ -258,13 +256,6 @@
     }
 
     buildList();
-
-    resetCam.onclick = () => {
-      focused = null;
-      controls.target.set(0, 0, 0);
-      camera.position.set(0, 4, 24);
-      setInfo({ name: 'Select a planet', description: 'Click a planet or pick from the list to fly there. Drag to orbit, scroll/pinch to zoom in and out.' });
-    };
 
     tourBtn.onclick = () => {
       touring = !touring;
