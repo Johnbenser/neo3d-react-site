@@ -23,21 +23,38 @@
       opacity: .22;
     }
 
+    .name-lock {
+      position: fixed;
+      left: 14px;
+      bottom: 14px;
+      z-index: 30;
+      font-weight: 800;
+      letter-spacing: .08em;
+      font-size: 12px;
+      color: #a5f3fc;
+      border: 1px solid rgba(255,255,255,.22);
+      background: rgba(7,12,28,.62);
+      padding: 8px 12px;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+    }
+
     .wrap {
       position: relative; z-index: 2; height: 100%;
-      display: grid; place-items: center; padding: 20px;
+      display: grid; place-items: end center; padding: 20px;
     }
 
     .panel {
-      width: min(1100px, 96vw);
+      width: min(820px, 96vw);
       border: 1px solid rgba(255,255,255,.18);
       background: linear-gradient(165deg, rgba(14,20,44,.66), rgba(7,10,28,.52));
       backdrop-filter: blur(12px);
       border-radius: 20px;
       box-shadow: 0 24px 70px rgba(0,0,0,.48);
-      padding: clamp(18px, 3vw, 34px);
+      padding: clamp(14px, 2.2vw, 22px);
       overflow: hidden;
       position: relative;
+      margin-bottom: 8px;
     }
 
     .glow {
@@ -108,6 +125,7 @@
 <body>
   <canvas id="bg3d"></canvas>
   <div class="noise"></div>
+  <div class="name-lock">BENSER • ALWAYS ON</div>
 
   <div class="wrap">
     <section class="panel" id="panel">
@@ -115,11 +133,10 @@
       <div class="glow2"></div>
       <div class="pulse" id="pulse"></div>
 
-      <div class="topline"><span class="dot"></span> BENser Motion Engine • Multi-Library Animation</div>
+      <div class="topline"><span class="dot"></span> BENSER Motion Engine • Multi-Library Animation</div>
       <h1 id="hero">Benser <span class="accent">MotionVerse</span></h1>
       <p class="sub" id="sub">
-        A responsive animation-first website with layered motion using <strong>Three.js</strong>, <strong>GSAP</strong>, and <strong>Anime.js</strong>.
-        Move your cursor to bend the universe in real time.
+        Cursor-reactive 3D first, UI second. Move around and let the scene flex.
       </p>
 
       <div class="grid" id="cards">
@@ -171,10 +188,27 @@
     scene.add(stars);
 
     const ring = new THREE.Mesh(
-      new THREE.TorusKnotGeometry(2.2, 0.32, 200, 22),
-      new THREE.MeshStandardMaterial({ color: 0x6ee7ff, emissive: 0x2dd4bf, emissiveIntensity: 0.45, roughness: 0.3, metalness: 0.65 })
+      new THREE.TorusKnotGeometry(2.2, 0.32, 240, 24),
+      new THREE.MeshStandardMaterial({ color: 0x6ee7ff, emissive: 0x2dd4bf, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.65 })
     );
     scene.add(ring);
+
+    const ring2 = new THREE.Mesh(
+      new THREE.TorusKnotGeometry(3.6, 0.12, 220, 18, 3, 5),
+      new THREE.MeshStandardMaterial({ color: 0xa78bfa, emissive: 0x8b5cf6, emissiveIntensity: 0.38, roughness: 0.4, metalness: 0.7, transparent: true, opacity: 0.8 })
+    );
+    scene.add(ring2);
+
+    const moons = [];
+    for (let i = 0; i < 7; i++) {
+      const moon = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.18 + Math.random() * 0.12, 1),
+        new THREE.MeshStandardMaterial({ color: i % 2 ? 0x67e8f9 : 0xf5d0fe, emissive: i % 2 ? 0x22d3ee : 0xa78bfa, emissiveIntensity: 0.28, roughness: 0.45, metalness: 0.5 })
+      );
+      moon.userData = { radius: 4.2 + i * 0.85, speed: 0.15 + i * 0.03, offset: Math.random() * Math.PI * 2 };
+      scene.add(moon);
+      moons.push(moon);
+    }
 
     const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
     window.addEventListener('mousemove', (e) => {
@@ -197,16 +231,30 @@
       pointer.x += (pointer.tx - pointer.x) * 0.06;
       pointer.y += (pointer.ty - pointer.y) * 0.06;
 
-      camera.position.x = pointer.x * 1.2;
-      camera.position.y = -pointer.y * 0.9;
+      camera.position.x = pointer.x * 2.2;
+      camera.position.y = -pointer.y * 1.4;
+      camera.position.z = 16 + Math.abs(pointer.x) * 0.7;
       camera.lookAt(0, 0, 0);
 
-      ring.rotation.x = t * 0.35 + pointer.y * 0.45;
-      ring.rotation.y = t * 0.55 + pointer.x * 0.6;
-      ring.position.y = Math.sin(t * 1.5) * 0.25;
+      ring.rotation.x = t * 0.4 + pointer.y * 0.7;
+      ring.rotation.y = t * 0.62 + pointer.x * 0.9;
+      ring.position.y = Math.sin(t * 1.8) * 0.32;
 
-      stars.rotation.y = t * 0.02;
-      stars.rotation.x = pointer.y * 0.04;
+      ring2.rotation.x = -t * 0.22 + pointer.y * 0.4;
+      ring2.rotation.y = t * 0.27 - pointer.x * 0.35;
+      ring2.position.y = Math.cos(t * 1.2) * 0.22;
+
+      for (const moon of moons) {
+        const d = moon.userData;
+        moon.position.x = Math.cos(t * d.speed + d.offset) * d.radius;
+        moon.position.z = Math.sin(t * d.speed + d.offset) * d.radius;
+        moon.position.y = Math.sin(t * (d.speed * 2.2) + d.offset) * 0.9;
+        moon.rotation.x += 0.01;
+        moon.rotation.y += 0.012;
+      }
+
+      stars.rotation.y = t * 0.03;
+      stars.rotation.x = pointer.y * 0.06;
 
       renderer.render(scene, camera);
       requestAnimationFrame(render);
