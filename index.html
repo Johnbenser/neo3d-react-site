@@ -2,199 +2,273 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Neo3D Interactive</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Neon Dash 3D</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-      :root {
-        --bg1: #090b14;
-        --bg2: #11142a;
-        --accent: #6ee7ff;
-        --accent2: #a78bfa;
-        --text: #e5e7eb;
-      }
-
       * { box-sizing: border-box; }
-      html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, Arial, sans-serif; }
-      body {
-        background: radial-gradient(circle at 20% 20%, #1b2353 0%, var(--bg2) 35%, var(--bg1) 100%);
-        color: var(--text);
-      }
-
-      #root { height: 100%; }
-
-      .scene {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        perspective: 1200px;
-        overflow: hidden;
-      }
-
-      .blob {
-        position: absolute;
-        width: 520px;
-        height: 520px;
-        border-radius: 50%;
-        filter: blur(60px);
-        opacity: 0.35;
-        pointer-events: none;
-        transform: translate(-50%, -50%);
-        mix-blend-mode: screen;
-      }
-
-      .blob.one { background: var(--accent); }
-      .blob.two { background: var(--accent2); width: 420px; height: 420px; opacity: 0.28; }
-
-      .grid {
-        position: absolute;
-        inset: 0;
-        background-image:
-          linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-        background-size: 42px 42px;
-        transform: rotateX(60deg) translateY(25%);
-        transform-origin: center;
-        opacity: 0.35;
-      }
-
-      .content-wrap {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 20px;
-      }
-
-      .panel {
-        width: min(980px, 95vw);
-        background: rgba(14, 20, 40, 0.55);
-        border: 1px solid rgba(255,255,255,0.14);
-        border-radius: 24px;
-        backdrop-filter: blur(16px);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-        transform-style: preserve-3d;
-        transition: transform 120ms linear;
-        padding: 28px;
-      }
-
-      .headline {
-        font-size: clamp(2rem, 5vw, 4rem);
-        line-height: 1.05;
-        margin: 0;
-        letter-spacing: -0.02em;
-      }
-
-      .sub {
-        margin-top: 12px;
-        color: #cbd5e1;
-        font-size: 1.05rem;
-      }
-
-      .cards {
-        margin-top: 22px;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 14px;
-      }
-
-      .card {
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 14px;
-        padding: 14px;
-        transform-style: preserve-3d;
-        transition: transform 120ms linear, border-color 120ms linear;
-      }
-
-      .card:hover {
-        border-color: rgba(110,231,255,0.7);
-      }
-
-      .badge {
-        display: inline-flex;
-        gap: 8px;
-        align-items: center;
-        font-size: .85rem;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.18);
-        padding: 8px 12px;
-        border-radius: 999px;
-        margin-bottom: 12px;
-      }
-
-      .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #34d399;
-        box-shadow: 0 0 12px #34d399;
-      }
+      html, body, #root { margin: 0; height: 100%; background: #070b18; font-family: Inter, system-ui, Arial; color: #e5e7eb; }
+      .app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+      .hud { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-weight: 700; background: linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,0)); position: fixed; inset: 0 0 auto 0; z-index: 5; }
+      .game-wrap { position: relative; height: 100%; overflow: hidden; touch-action: none; }
+      canvas { width: 100%; height: 100%; display: block; }
+      .overlay { position: absolute; inset: 0; display: grid; place-items: center; z-index: 6; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 20%, rgba(24,35,79,.5), rgba(0,0,0,.65)); }
+      .card { width: min(460px, 92vw); background: rgba(17,24,39,.75); border: 1px solid rgba(255,255,255,.16); border-radius: 18px; padding: 20px; backdrop-filter: blur(8px); }
+      h1 { margin: 0 0 6px; font-size: 1.8rem; }
+      .sub { opacity: .88; margin: 0 0 14px; }
+      .btn { background: linear-gradient(90deg, #22d3ee, #8b5cf6); color: #041322; font-weight: 800; border: none; border-radius: 12px; padding: 12px 18px; width: 100%; font-size: 1rem; }
+      .tips { margin-top: 10px; font-size: .88rem; opacity: .86; line-height: 1.4; }
+      .hook { color: #67e8f9; font-weight: 800; }
+      .controls { position: fixed; inset: auto 10px 10px 10px; z-index: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .pad { background: rgba(17,24,39,.55); border: 1px solid rgba(255,255,255,.18); color: #e5e7eb; border-radius: 12px; padding: 12px; text-align: center; user-select: none; }
     </style>
   </head>
   <body>
     <div id="root"></div>
 
     <script type="text/babel">
-      function App() {
-        const [mouse, setMouse] = React.useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+      const LANES = [-1, 0, 1];
 
-        React.useEffect(() => {
-          const onMove = (e) => setMouse({ x: e.clientX, y: e.clientY });
-          window.addEventListener('mousemove', onMove);
-          return () => window.removeEventListener('mousemove', onMove);
+      function App() {
+        const canvasRef = React.useRef(null);
+        const [started, setStarted] = React.useState(false);
+        const [gameOver, setGameOver] = React.useState(false);
+        const [score, setScore] = React.useState(0);
+        const [best, setBest] = React.useState(Number(localStorage.getItem('neon3d_best') || 0));
+
+        const gameRef = React.useRef({
+          lane: 1,
+          targetLane: 1,
+          speed: 0.33,
+          obstacles: [],
+          coins: [],
+          t: 0,
+          score: 0,
+          raf: 0,
+          spawnTimer: 0,
+          coinTimer: 0,
+          ended: false,
+        });
+
+        const startGame = React.useCallback(() => {
+          const g = gameRef.current;
+          g.lane = 1;
+          g.targetLane = 1;
+          g.speed = 0.33;
+          g.obstacles = [];
+          g.coins = [];
+          g.t = 0;
+          g.score = 0;
+          g.spawnTimer = 0;
+          g.coinTimer = 0;
+          g.ended = false;
+          setScore(0);
+          setGameOver(false);
+          setStarted(true);
         }, []);
 
-        const rx = ((mouse.y / window.innerHeight) - 0.5) * -16;
-        const ry = ((mouse.x / window.innerWidth) - 0.5) * 18;
+        React.useEffect(() => {
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d');
+
+          const resize = () => {
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            canvas.width = Math.floor(window.innerWidth * dpr);
+            canvas.height = Math.floor(window.innerHeight * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          };
+          resize();
+          window.addEventListener('resize', resize);
+
+          const projectX = (lane, z, w) => {
+            const perspective = 1 / (z + 0.25);
+            return w / 2 + lane * 140 * perspective;
+          };
+
+          const draw = () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const g = gameRef.current;
+            g.t += 1;
+
+            ctx.fillStyle = '#070b18';
+            ctx.fillRect(0, 0, w, h);
+
+            // stars
+            for (let i = 0; i < 45; i++) {
+              const x = (i * 117 + g.t * 0.15) % w;
+              const y = (i * 57 + (i % 3) * 99) % (h * 0.65);
+              ctx.fillStyle = i % 2 ? 'rgba(103,232,249,.6)' : 'rgba(167,139,250,.45)';
+              ctx.fillRect(x, y, 2, 2);
+            }
+
+            // road/tunnel lines
+            for (let z = 1.7; z > 0.08; z -= 0.045) {
+              const p = 1 / (z + 0.25);
+              const y = h * (0.2 + (1 - p) * 0.85);
+              const roadW = 420 * p;
+              const alpha = Math.max(0.05, 0.35 * (1 - z / 1.7));
+              ctx.strokeStyle = `rgba(34,211,238,${alpha})`;
+              ctx.beginPath();
+              ctx.moveTo(w / 2 - roadW, y);
+              ctx.lineTo(w / 2 + roadW, y);
+              ctx.stroke();
+            }
+
+            // lane interpolation
+            g.lane += (g.targetLane - g.lane) * 0.24;
+
+            // spawn obstacles/coins
+            g.spawnTimer -= g.speed;
+            g.coinTimer -= g.speed;
+            if (g.spawnTimer <= 0) {
+              g.spawnTimer = Math.max(26, 55 - g.score * 0.05);
+              const lane = Math.floor(Math.random() * 3);
+              g.obstacles.push({ lane, z: 1.7 });
+            }
+            if (g.coinTimer <= 0) {
+              g.coinTimer = 24;
+              const lane = Math.floor(Math.random() * 3);
+              g.coins.push({ lane, z: 1.7 });
+            }
+
+            // player
+            const playerX = projectX(g.lane - 1, 0.13, w);
+            const playerY = h * 0.84;
+            const playerW = 64;
+            const playerH = 26;
+            ctx.fillStyle = '#8b5cf6';
+            ctx.fillRect(playerX - playerW / 2, playerY - playerH / 2, playerW, playerH);
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillRect(playerX - 12, playerY - 8, 24, 8);
+
+            // update/draw obstacles
+            for (const ob of g.obstacles) {
+              ob.z -= g.speed * 0.016;
+              const x = projectX(ob.lane - 1, ob.z, w);
+              const p = 1 / (ob.z + 0.25);
+              const size = Math.max(14, 70 * p);
+              const y = h * (0.2 + (1 - p) * 0.65);
+
+              ctx.fillStyle = '#fb7185';
+              ctx.fillRect(x - size / 2, y - size / 2, size, size);
+
+              const near = ob.z < 0.2;
+              if (near && Math.abs(ob.lane - 1 - g.lane) < 0.33) {
+                g.ended = true;
+              }
+            }
+
+            // coins
+            for (const c of g.coins) {
+              c.z -= g.speed * 0.016;
+              const x = projectX(c.lane - 1, c.z, w);
+              const p = 1 / (c.z + 0.25);
+              const r = Math.max(5, 14 * p);
+              const y = h * (0.2 + (1 - p) * 0.65);
+
+              ctx.beginPath();
+              ctx.arc(x, y, r, 0, Math.PI * 2);
+              ctx.fillStyle = '#fde047';
+              ctx.fill();
+
+              const near = c.z < 0.2;
+              if (near && Math.abs(c.lane - 1 - g.lane) < 0.33) {
+                c.hit = true;
+                g.score += 10;
+              }
+            }
+
+            g.obstacles = g.obstacles.filter((o) => o.z > 0);
+            g.coins = g.coins.filter((c) => c.z > 0 && !c.hit);
+
+            g.score += 1;
+            g.speed = Math.min(0.7, 0.33 + g.score * 0.0007);
+            if (g.score % 4 === 0) setScore(g.score);
+
+            if (g.ended) {
+              setGameOver(true);
+              setStarted(false);
+              const bestNow = Math.max(best, g.score);
+              if (bestNow !== best) {
+                setBest(bestNow);
+                localStorage.setItem('neon3d_best', String(bestNow));
+              }
+              cancelAnimationFrame(g.raf);
+              return;
+            }
+
+            g.raf = requestAnimationFrame(draw);
+          };
+
+          if (started && !gameOver) {
+            const g = gameRef.current;
+            cancelAnimationFrame(g.raf);
+            g.raf = requestAnimationFrame(draw);
+          }
+
+          return () => {
+            cancelAnimationFrame(gameRef.current.raf);
+            window.removeEventListener('resize', resize);
+          };
+        }, [started, gameOver, best]);
+
+        const moveLeft = () => {
+          const g = gameRef.current;
+          g.targetLane = Math.max(0, g.targetLane - 1);
+        };
+
+        const moveRight = () => {
+          const g = gameRef.current;
+          g.targetLane = Math.min(2, g.targetLane + 1);
+        };
+
+        const handleTouch = (e) => {
+          const x = e.touches[0].clientX;
+          if (x < window.innerWidth / 2) moveLeft();
+          else moveRight();
+        };
+
+        React.useEffect(() => {
+          const onKey = (e) => {
+            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') moveLeft();
+            if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') moveRight();
+          };
+          window.addEventListener('keydown', onKey);
+          return () => window.removeEventListener('keydown', onKey);
+        }, []);
 
         return (
-          <div className="scene">
-            <div className="grid" />
+          <div className="app">
+            <div className="hud">
+              <div>⚡ Neon Dash 3D</div>
+              <div>Score: {score} • Best: {best}</div>
+            </div>
 
-            <div
-              className="blob one"
-              style={{ left: `${mouse.x}px`, top: `${mouse.y}px` }}
-            />
-            <div
-              className="blob two"
-              style={{ left: `${window.innerWidth - mouse.x}px`, top: `${window.innerHeight - mouse.y}px` }}
-            />
+            <div className="game-wrap" onTouchStart={handleTouch}>
+              <canvas ref={canvasRef} />
 
-            <div className="content-wrap">
-              <section
-                className="panel"
-                style={{ transform: `rotateX(${rx}deg) rotateY(${ry}deg) translateZ(0px)` }}
-              >
-                <div className="badge"><span className="dot" /> live cursor-reactive 3D UI</div>
-                <h1 className="headline">Neo3D Website Experience • Benser</h1>
-                <p className="sub">
-                  Move your cursor and the entire interface reacts in real-time with depth, glow, and parallax.
-                  Updated just now to verify Git→Vercel auto-deploy.
-                </p>
-
-                <div className="cards">
-                  {[
-                    'Parallax Depth',
-                    'Neon Atmosphere',
-                    'Responsive Grid',
-                    'Modern Glass UI'
-                  ].map((item, i) => (
-                    <article
-                      key={item}
-                      className="card"
-                      style={{ transform: `translateZ(${8 + i * 4}px) rotateY(${ry * 0.25}deg)` }}
-                    >
-                      <strong>{item}</strong>
-                      <p style={{ margin: '8px 0 0', color: '#cbd5e1' }}>
-                        Smooth motion tuned for modern landing pages.
-                      </p>
-                    </article>
-                  ))}
+              {(!started || gameOver) && (
+                <div className="overlay">
+                  <div className="card">
+                    <h1>{gameOver ? 'Crashed! Try Again' : '3D Hook Game'}</h1>
+                    <p className="sub">
+                      <span className="hook">Dodge obstacles, collect coins, beat your best score.</span>
+                    </p>
+                    <button className="btn" onClick={startGame}>{gameOver ? 'Play Again' : 'Start Game'}</button>
+                    <div className="tips">Phone: tap left/right side to move lanes • Desktop: Arrow keys A/D</div>
+                  </div>
                 </div>
-              </section>
+              )}
+
+              {started && (
+                <div className="controls">
+                  <div className="pad" onTouchStart={moveLeft} onMouseDown={moveLeft}>◀ LEFT</div>
+                  <div className="pad" onTouchStart={moveRight} onMouseDown={moveRight}>RIGHT ▶</div>
+                </div>
+              )}
             </div>
           </div>
         );
