@@ -3,130 +3,189 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Benser Neon Nexus</title>
+  <title>Benser Anatomy Explorer 3D</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, Arial, sans-serif; background: #040612; }
+    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, Arial, sans-serif; background: #060914; color: #e5e7eb; }
     #app { position: fixed; inset: 0; }
-    .ui {
-      position: fixed; inset: 0; pointer-events: none;
-      display: flex; flex-direction: column; justify-content: space-between;
-      padding: 18px;
-      color: #e2e8f0;
-      background: radial-gradient(circle at 20% 20%, rgba(103,232,249,.08), transparent 35%), radial-gradient(circle at 80% 30%, rgba(167,139,250,.08), transparent 35%);
-    }
-    .topbar { display: flex; justify-content: space-between; align-items: center; }
-    .chip { font-size: 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 7px 12px; backdrop-filter: blur(6px); background: rgba(10,14,32,.35); }
-    .hero { max-width: 760px; margin-bottom: 30px; }
-    h1 {
-      margin: 0; font-size: clamp(32px, 8vw, 78px); line-height: .95;
-      letter-spacing: -0.03em; text-shadow: 0 0 24px rgba(110,231,255,.28);
-    }
-    p { margin: 14px 0 0; color: #cbd5e1; font-size: clamp(14px, 2.4vw, 20px); }
-    .hint { font-size: 12px; opacity: .85; margin-top: 10px; }
+    .hud { position: fixed; inset: 12px 12px auto 12px; display: flex; justify-content: space-between; gap: 10px; z-index: 10; pointer-events: none; }
+    .chip { pointer-events: auto; background: rgba(12,18,36,.6); border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: 8px 12px; font-size: 12px; backdrop-filter: blur(8px); }
+    .controls { position: fixed; right: 12px; top: 56px; width: min(360px, 92vw); max-height: 84vh; overflow: auto; z-index: 12; background: rgba(10,16,30,.75); border: 1px solid rgba(255,255,255,.15); border-radius: 14px; padding: 12px; backdrop-filter: blur(10px); }
+    .controls h2 { margin: 4px 0 10px; font-size: 17px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    button { border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.07); color: #dbeafe; border-radius: 999px; padding: 7px 11px; font-size: 12px; cursor: pointer; }
+    button.active { background: linear-gradient(90deg,#22d3ee,#8b5cf6); color: #031122; font-weight: 700; }
+    .card { border: 1px solid rgba(255,255,255,.15); border-radius: 12px; padding: 10px; margin-top: 8px; background: rgba(255,255,255,.04); }
+    .name { font-weight: 700; color: #67e8f9; }
+    .meta { font-size: 12px; opacity: .86; margin-top: 4px; line-height: 1.35; }
+    .legend { font-size: 12px; opacity: .9; line-height: 1.35; }
+    .small { font-size: 11px; opacity: .75; }
+    .footer { margin-top: 8px; font-size: 11px; opacity: .72; }
+    @media (max-width: 900px){ .controls { left: 12px; right: 12px; top: auto; bottom: 12px; width: auto; max-height: 42vh; } }
   </style>
 </head>
 <body>
   <div id="app"></div>
 
-  <div class="ui">
-    <div class="topbar">
-      <div class="chip">⚡ THREE.JS LIVE EXPERIENCE</div>
-      <div class="chip" id="fps">FPS: --</div>
-    </div>
-    <div class="hero">
-      <h1>Benser’s<br/>Neon Nexus</h1>
-      <p>Move your cursor / drag on phone. The world bends around you in real-time.</p>
-      <div class="hint">Optimized for desktop + mobile • Auto-deployed on your Vercel</div>
-    </div>
+  <div class="hud">
+    <div class="chip">🧠 Benser Anatomy Explorer 3D</div>
+    <div id="fps" class="chip">FPS: --</div>
   </div>
+
+  <aside class="controls">
+    <h2>Systems</h2>
+    <div id="systemButtons" class="row"></div>
+    <div class="legend">Tap/click an organ to inspect details. Drag to orbit. Scroll/pinch to zoom.</div>
+    <div id="organInfo" class="card">
+      <div class="name">Select an organ</div>
+      <div class="meta">Explore the body model and choose any highlighted structure.</div>
+    </div>
+    <div class="footer">Educational visualization only — not a clinical diagnostic tool.</div>
+  </aside>
 
   <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+
+    const anatomyData = [
+      { id:'brain', system:'Nervous', color:0xff7ab6, shape:'sphere', scale:[0.55,0.42,0.58], pos:[0,2.18,0], facts:['Cortex + cerebellum + brainstem integration','~86 billion neurons','Consumes high oxygen/glucose demand'], blood:'Internal carotid + vertebrobasilar', note:'Controls cognition, motor planning, sensory integration.' },
+      { id:'heart', system:'Cardiovascular', color:0xff4d4d, shape:'sphere', scale:[0.48,0.56,0.42], pos:[0.16,1.08,0.1], facts:['4 chambers','Cardiac cycle driven by conduction system','Average adult resting output ~5 L/min'], blood:'Coronary arteries', note:'Pumps blood through pulmonary/systemic circuits.' },
+      { id:'left_lung', system:'Respiratory', color:0x7dd3fc, shape:'sphere', scale:[0.52,0.8,0.42], pos:[-0.5,1.1,0.02], facts:['2 lobes','Alveolar gas exchange surface','Elastic recoil during expiration'], blood:'Pulmonary + bronchial circulation', note:'Oxygenates blood and removes CO2.' },
+      { id:'right_lung', system:'Respiratory', color:0x7dd3fc, shape:'sphere', scale:[0.58,0.88,0.46], pos:[0.58,1.12,0.02], facts:['3 lobes','Higher right hemidiaphragm relation','Major airway bifurcation landmarks'], blood:'Pulmonary + bronchial circulation', note:'Pairs with left lung for ventilation/perfusion.' },
+      { id:'liver', system:'Digestive', color:0xf59e0b, shape:'capsule', scale:[0.9,0.35,0.48], pos:[0.45,0.28,0.12], facts:['Largest internal organ','Bile production + metabolism','Detoxification + glycogen storage'], blood:'Portal vein + hepatic artery', note:'Central metabolic hub and nutrient processing.' },
+      { id:'stomach', system:'Digestive', color:0xf97316, shape:'capsule', scale:[0.45,0.55,0.35], pos:[-0.25,0.35,0.16], facts:['Mechanical + chemical digestion','Acid + pepsin activity','Pyloric emptying control'], blood:'Left/right gastric arteries', note:'Initial protein breakdown and bolus mixing.' },
+      { id:'pancreas', system:'Digestive', color:0xfacc15, shape:'capsule', scale:[0.72,0.18,0.2], pos:[0.05,0.18,0.18], facts:['Exocrine enzymes','Endocrine islets (insulin/glucagon)','Retroperitoneal relation'], blood:'Splenic + pancreaticoduodenal branches', note:'Supports digestion and glucose regulation.' },
+      { id:'left_kidney', system:'Urinary', color:0x8b5cf6, shape:'kidney', scale:[0.24,0.45,0.2], pos:[-0.4,-0.32,0.08], facts:['Nephron filtration','Renin/erythropoietin activity','Fluid-electrolyte balancing'], blood:'Renal artery', note:'Filters blood and forms urine.' },
+      { id:'right_kidney', system:'Urinary', color:0x8b5cf6, shape:'kidney', scale:[0.24,0.45,0.2], pos:[0.42,-0.33,0.08], facts:['Right kidney slightly lower','Acid-base support','Water balance control'], blood:'Renal artery', note:'Maintains homeostasis with paired filtration.' },
+      { id:'small_intestine', system:'Digestive', color:0x34d399, shape:'coil', scale:[0.95,0.75,0.55], pos:[0,-0.7,0.06], facts:['Primary nutrient absorption','Villi and microvilli amplification','~6m average adult length'], blood:'Superior mesenteric branches', note:'Main site of digestion absorption.' },
+      { id:'spine', system:'Skeletal', color:0xe5e7eb, shape:'spine', scale:[0.2,1.9,0.2], pos:[0,0.6,-0.18], facts:['Cervical/thoracic/lumbar segments','Intervertebral discs for shock absorption','Protects spinal cord'], blood:'Segmental arterial network', note:'Axial support and neural protection.' },
+      { id:'pelvis', system:'Skeletal', color:0xd4d4d8, shape:'ring', scale:[0.9,0.48,0.42], pos:[0,-1.3,-0.05], facts:['Weight transfer to lower limbs','Supports pelvic organs','Important obstetric dimensions'], blood:'Internal iliac branches', note:'Load-bearing structure and organ support.' }
+    ];
 
     const app = document.getElementById('app');
     const fpsEl = document.getElementById('fps');
+    const infoEl = document.getElementById('organInfo');
+    const btnWrap = document.getElementById('systemButtons');
+
+    const systems = ['All', ...new Set(anatomyData.map(o => o.system))];
+    let activeSystem = 'All';
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x050712, 6, 28);
+    scene.background = new THREE.Color(0x060914);
+    scene.fog = new THREE.Fog(0x060914, 8, 24);
 
-    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 100);
-    camera.position.set(0, 0.5, 8);
+    const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(0, 0.9, 8);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(innerWidth, innerHeight);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     app.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0x88aaff, 0.55);
-    scene.add(ambient);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.minDistance = 3.6;
+    controls.maxDistance = 16;
+    controls.target.set(0, 0.35, 0);
 
-    const key = new THREE.PointLight(0x67e8f9, 1.7, 40);
-    key.position.set(3, 3, 4);
-    scene.add(key);
+    scene.add(new THREE.AmbientLight(0x9aa5ff, 0.65));
+    const key = new THREE.PointLight(0x67e8f9, 1.5, 50); key.position.set(4, 5, 4); scene.add(key);
+    const rim = new THREE.PointLight(0xa78bfa, 1.2, 40); rim.position.set(-4, 1, -4); scene.add(rim);
 
-    const rim = new THREE.PointLight(0xa78bfa, 1.4, 40);
-    rim.position.set(-4, -1, 2);
-    scene.add(rim);
+    // Body shell silhouette
+    const shellGeo = new THREE.CapsuleGeometry(1.2, 4.1, 10, 24);
+    const shellMat = new THREE.MeshPhysicalMaterial({ color: 0x1a2338, transparent: true, opacity: 0.22, roughness: 0.35, metalness: 0.05, clearcoat: 0.6, transmission: 0.2 });
+    const shell = new THREE.Mesh(shellGeo, shellMat);
+    shell.position.y = 0.25;
+    scene.add(shell);
 
-    // Main hero mesh
-    const heroGeo = new THREE.TorusKnotGeometry(1.6, 0.45, 220, 22);
-    const heroMat = new THREE.MeshStandardMaterial({
-      color: 0x77f4ff,
-      emissive: 0x1b9fcf,
-      emissiveIntensity: 0.45,
-      metalness: 0.85,
-      roughness: 0.25
+    // Grid floor
+    const grid = new THREE.GridHelper(30, 40, 0x1f355d, 0x12203a);
+    grid.position.y = -2.2;
+    scene.add(grid);
+
+    const organGroup = new THREE.Group();
+    scene.add(organGroup);
+
+    const organs = [];
+    const makeMat = c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.12, roughness: 0.45, metalness: 0.2 });
+
+    function geoByShape(shape){
+      if (shape === 'sphere') return new THREE.SphereGeometry(1, 24, 18);
+      if (shape === 'capsule') return new THREE.CapsuleGeometry(0.55, 1.2, 8, 16);
+      if (shape === 'ring') return new THREE.TorusGeometry(0.95, 0.25, 14, 40);
+      if (shape === 'coil') return new THREE.TorusKnotGeometry(0.55, 0.18, 120, 14, 2, 3);
+      if (shape === 'spine') return new THREE.CylinderGeometry(0.17, 0.2, 2.2, 18);
+      if (shape === 'kidney') return new THREE.TorusGeometry(0.55, 0.25, 18, 50, Math.PI * 1.55);
+      return new THREE.BoxGeometry(1,1,1);
+    }
+
+    anatomyData.forEach((d, idx) => {
+      const m = new THREE.Mesh(geoByShape(d.shape), makeMat(d.color));
+      m.position.set(...d.pos);
+      m.scale.set(...d.scale);
+      m.rotation.y = idx * 0.19;
+      m.userData = d;
+      m.renderOrder = 2;
+      organGroup.add(m);
+      organs.push(m);
     });
-    const hero = new THREE.Mesh(heroGeo, heroMat);
-    scene.add(hero);
 
-    // Orbit rings
-    const rings = [];
-    for (let i = 0; i < 3; i++) {
-      const g = new THREE.TorusGeometry(2.8 + i * 0.5, 0.03, 12, 220);
-      const m = new THREE.MeshBasicMaterial({
-        color: i % 2 ? 0xa78bfa : 0x67e8f9,
-        transparent: true,
-        opacity: 0.45
+    const haloGeo = new THREE.SphereGeometry(1.06, 24, 18);
+    const haloMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0 });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.visible = false;
+    scene.add(halo);
+
+    function setInfo(data){
+      infoEl.innerHTML = `
+        <div class="name">${data.id.replaceAll('_',' ').toUpperCase()}</div>
+        <div class="meta"><strong>System:</strong> ${data.system}</div>
+        <div class="meta"><strong>Key Facts:</strong><br/>• ${data.facts.join('<br/>• ')}</div>
+        <div class="meta"><strong>Blood Supply:</strong> ${data.blood}</div>
+        <div class="meta"><strong>Role:</strong> ${data.note}</div>
+      `;
+    }
+
+    function buildButtons(){
+      btnWrap.innerHTML = '';
+      systems.forEach(s => {
+        const b = document.createElement('button');
+        b.textContent = s;
+        if (s === activeSystem) b.classList.add('active');
+        b.onclick = () => {
+          activeSystem = s;
+          [...btnWrap.children].forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          organs.forEach(o => {
+            const on = s === 'All' || o.userData.system === s;
+            o.visible = on;
+            o.material.opacity = on ? 1 : 0.08;
+            o.material.transparent = !on;
+          });
+        };
+        btnWrap.appendChild(b);
       });
-      const ring = new THREE.Mesh(g, m);
-      ring.rotation.x = Math.PI * (0.27 + i * 0.08);
-      ring.rotation.y = i * 0.7;
-      scene.add(ring);
-      rings.push(ring);
     }
+    buildButtons();
 
-    // Particle galaxy
-    const count = 2200;
-    const pos = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-      const r = 5 + Math.random() * 12;
-      const a = Math.random() * Math.PI * 2;
-      const y = (Math.random() - 0.5) * 8;
-      pos[i3] = Math.cos(a) * r;
-      pos[i3 + 1] = y;
-      pos[i3 + 2] = Math.sin(a) * r;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let selected = null;
+
+    function pick(clientX, clientY){
+      pointer.x = (clientX / innerWidth) * 2 - 1;
+      pointer.y = -(clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(organs.filter(o => o.visible));
+      if (hits.length){
+        selected = hits[0].object;
+        setInfo(selected.userData);
+      }
     }
-    const starsGeo = new THREE.BufferGeometry();
-    starsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const starsMat = new THREE.PointsMaterial({ color: 0x99b6ff, size: 0.035, transparent: true, opacity: 0.9 });
-    const stars = new THREE.Points(starsGeo, starsMat);
-    scene.add(stars);
-
-    // Mouse/touch parallax
-    const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
-    const setPointer = (x, y) => {
-      pointer.tx = (x / innerWidth) * 2 - 1;
-      pointer.ty = (y / innerHeight) * 2 - 1;
-    };
-    addEventListener('mousemove', e => setPointer(e.clientX, e.clientY));
-    addEventListener('touchmove', e => {
-      const t = e.touches[0];
-      if (t) setPointer(t.clientX, t.clientY);
-    }, { passive: true });
+    addEventListener('click', e => pick(e.clientX, e.clientY));
+    addEventListener('touchstart', e => { const t=e.touches[0]; if(t) pick(t.clientX,t.clientY); }, { passive:true });
 
     addEventListener('resize', () => {
       camera.aspect = innerWidth / innerHeight;
@@ -135,54 +194,34 @@
       renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     });
 
-    let last = performance.now();
-    let frames = 0;
-    let fpsClock = 0;
-
+    let f = 0, acc = 0, prev = performance.now();
     const clock = new THREE.Clock();
-    function animate() {
+    function loop(){
       const t = clock.getElapsedTime();
+      controls.update();
 
-      pointer.x += (pointer.tx - pointer.x) * 0.06;
-      pointer.y += (pointer.ty - pointer.y) * 0.06;
-
-      camera.position.x = pointer.x * 1.2;
-      camera.position.y = 0.5 + -pointer.y * 0.8;
-      camera.lookAt(0, 0, 0);
-
-      hero.rotation.x = t * 0.45 + pointer.y * 0.5;
-      hero.rotation.y = t * 0.65 + pointer.x * 0.7;
-      hero.position.y = Math.sin(t * 1.3) * 0.18;
-
-      rings.forEach((r, i) => {
-        r.rotation.z = t * (0.14 + i * 0.06) * (i % 2 ? 1 : -1);
-        r.material.opacity = 0.22 + Math.sin(t * 1.4 + i) * 0.12;
+      organs.forEach((o, i) => {
+        o.rotation.y += 0.004 + (i % 3) * 0.0008;
+        o.position.z += Math.sin(t * 0.8 + i) * 0.0007;
       });
 
-      stars.rotation.y = t * 0.03;
-      stars.rotation.x = Math.sin(t * 0.12) * 0.08;
+      shell.material.emissive = new THREE.Color(0x0f1b33);
+      shell.material.emissiveIntensity = 0.08 + Math.sin(t * 1.2) * 0.03;
 
-      key.position.x = 3 + Math.sin(t * 1.8) * 1.2 + pointer.x;
-      rim.position.y = -1 + Math.cos(t * 1.2) * 1.1 - pointer.y;
+      if (selected){
+        halo.visible = true;
+        halo.position.copy(selected.position);
+        halo.scale.copy(selected.scale).multiplyScalar(0.75 + Math.sin(t * 3.2) * 0.04);
+      } else halo.visible = false;
 
       renderer.render(scene, camera);
-      requestAnimationFrame(animate);
+      requestAnimationFrame(loop);
 
-      // FPS meter
       const now = performance.now();
-      const dt = now - last;
-      last = now;
-      fpsClock += dt;
-      frames++;
-      if (fpsClock >= 400) {
-        const fps = Math.round((frames * 1000) / fpsClock);
-        fpsEl.textContent = `FPS: ${fps}`;
-        fpsClock = 0;
-        frames = 0;
-      }
+      const dt = now - prev; prev = now; acc += dt; f++;
+      if (acc > 500){ fpsEl.textContent = `FPS: ${Math.round((f * 1000) / acc)}`; f = 0; acc = 0; }
     }
-
-    animate();
+    loop();
   </script>
 </body>
 </html>
